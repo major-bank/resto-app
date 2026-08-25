@@ -1,0 +1,10 @@
+{
+  "name": "resto-app",
+  "version": "2.0.0",
+  "private": true,
+  "description": "云味小馆点餐小程序 —— Node 后端（SSE 实时同步 + JSON 存储 + 图片上传）",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

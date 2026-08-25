@@ -1,0 +1,14 @@
+# 依赖与构建
+node_modules/
+
+# 运行时数据（本地模式生成，不入库）
+data/
+uploads/
+
+# 日志与临时文件
+*.log
+_*.js
+
+# 本地工具与产物
+cloudflared.exe
+dist/
