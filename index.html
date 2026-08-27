@@ -1,0 +1,1482 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>云味小馆</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  :root {
+    --pri: #ff6b35;
+    --pri-d: #e85a26;
+    --pri-l: #fff1ea;
+    --ok: #22c55e;
+    --warn: #f59e0b;
+    --danger: #ef4444;
+    --bg: #f5f5f7;
+    --card: #ffffff;
+    --txt: #222222;
+    --sub: #8a8a8e;
+    --line: #ececee;
+  }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+    background: #e8e8ec;
+    color: var(--txt);
+  }
+  /* 手机框（桌面居中） */
+  #phone {
+    position: relative;
+    margin: 0 auto;
+    max-width: 430px;
+    width: 100%;
+    height: 100dvh;
+    background: var(--bg);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 0 40px rgba(0,0,0,.12);
+  }
+  @media (min-width: 480px) { body { padding: 16px 0; } #phone { border-radius: 28px; height: calc(100dvh - 32px); } }
+
+  /* 顶栏 */
+  #topbar {
+    flex: none;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px;
+    background: linear-gradient(135deg, var(--pri), #ff8f5e);
+    color: #fff;
+    position: relative; z-index: 30;
+  }
+  #topbar .brand { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  #topbar .logo {
+    width: 30px; height: 30px; border-radius: 9px; background: rgba(255,255,255,.22);
+    display: flex; align-items: center; justify-content: center; font-size: 17px; flex: none;
+  }
+  #topbar .name { font-size: 17px; font-weight: 700; letter-spacing: .5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #topbar .slogan { font-size: 10px; opacity: .85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
+  #topbar .right { display: flex; align-items: center; gap: 8px; flex: none; }
+  #onlineBadge {
+    display: flex; align-items: center; gap: 4px;
+    font-size: 10px; background: rgba(255,255,255,.2); padding: 3px 8px; border-radius: 20px;
+  }
+  #onlineBadge .dot { width: 6px; height: 6px; border-radius: 50%; background: #fff; opacity: .55; }
+  #onlineBadge.online .dot { background: #baffce; opacity: 1; box-shadow: 0 0 6px #baffce; }
+  #onlineBadge.offline .dot { background: #ffd9c2; opacity: 1; }
+  #topbar .lock-btn {
+    background: rgba(255,255,255,.22); border: none; color: #fff; font-size: 14px;
+    width: 30px; height: 30px; border-radius: 9px; cursor: pointer;
+  }
+
+  /* 主内容 */
+  #app { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: 66px; position: relative; }
+  #app.no-pad { padding-bottom: 0; }
+
+  /* 底部导航 */
+  #bottomnav {
+    position: absolute; left: 0; right: 0; bottom: 0; z-index: 30;
+    display: flex; background: #fff; border-top: 1px solid var(--line);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  #bottomnav.hidden { display: none; }
+  #bottomnav .nav-item {
+    flex: 1; text-align: center; padding: 8px 0 6px; font-size: 10px; color: var(--sub);
+    background: none; border: none; cursor: pointer;
+  }
+  #bottomnav .nav-item.active { color: var(--pri); font-weight: 600; }
+  #bottomnav .nav-item .ico { font-size: 20px; display: block; margin-bottom: 1px; }
+
+  /* 通用卡片 */
+  .card { background: var(--card); border-radius: 14px; margin: 10px 12px; padding: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+  .sec-title { font-size: 13px; font-weight: 700; margin: 14px 14px 6px; color: var(--txt); display: flex; align-items: center; justify-content: space-between; }
+  .sec-title .more { font-size: 11px; color: var(--sub); font-weight: 400; }
+
+  /* 分类 chips */
+  .cats { display: flex; gap: 8px; padding: 10px 14px 4px; overflow-x: auto; scrollbar-width: none; }
+  .cats::-webkit-scrollbar { display: none; }
+  .cat-chip {
+    flex: none; padding: 6px 14px; border-radius: 20px; background: #fff; border: 1px solid var(--line);
+    font-size: 12px; color: var(--sub); cursor: pointer;
+  }
+  .cat-chip.active { background: var(--pri); color: #fff; border-color: var(--pri); font-weight: 600; }
+
+  /* 菜品网格 */
+  .dish-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px 12px 12px; }
+  .dish-card {
+    background: #fff; border-radius: 14px; overflow: hidden; position: relative;
+    box-shadow: 0 1px 3px rgba(0,0,0,.06); cursor: pointer;
+  }
+  .dish-card .img-wrap { width: 100%; aspect-ratio: 1 / 0.85; background: var(--pri-l); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .dish-card .img-wrap img { width: 100%; height: 100%; object-fit: cover; }
+  .dish-card .img-wrap .emoji { font-size: 46px; }
+  .dish-card .body { padding: 8px 10px 10px; }
+  .dish-card .nm { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dish-card .ds { font-size: 10px; color: var(--sub); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dish-card .row { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; }
+  .dish-card .price { color: var(--pri); font-weight: 700; font-size: 15px; }
+  .dish-card .price small { font-size: 10px; font-weight: 500; }
+  .dish-card .add-btn {
+    width: 26px; height: 26px; border-radius: 50%; border: none; background: var(--pri); color: #fff;
+    font-size: 17px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .dish-card .sold { position: absolute; top: 6px; left: 6px; background: rgba(0,0,0,.55); color: #fff; font-size: 10px; padding: 2px 8px; border-radius: 10px; }
+  .dish-card.off .img-wrap, .dish-card.off { opacity: .55; }
+
+  /* 底部购物车条 */
+  #cartbar {
+    position: absolute; left: 12px; right: 12px; bottom: calc(58px + env(safe-area-inset-bottom));
+    z-index: 25; background: #222; color: #fff; border-radius: 26px; padding: 10px 14px;
+    display: none; align-items: center; gap: 10px; box-shadow: 0 6px 20px rgba(0,0,0,.25);
+  }
+  #cartbar.show { display: flex; }
+  #cartbar .cart-ico { position: relative; font-size: 22px; }
+  #cartbar .cnt {
+    position: absolute; top: -6px; right: -10px; background: var(--pri); color: #fff;
+    font-size: 10px; min-width: 17px; height: 17px; border-radius: 9px; display: flex; align-items: center; justify-content: center;
+  }
+  #cartbar .total { flex: 1; font-size: 15px; font-weight: 700; }
+  #cartbar .total small { font-size: 10px; font-weight: 400; color: #bbb; }
+  #cartbar .go-btn { background: var(--pri); border: none; color: #fff; font-size: 13px; font-weight: 600; padding: 7px 18px; border-radius: 18px; cursor: pointer; }
+
+  /* 按钮 */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+    border: none; border-radius: 10px; font-size: 13px; padding: 8px 16px; cursor: pointer;
+    background: var(--pri); color: #fff; font-weight: 600;
+  }
+  .btn.block { display: flex; width: 100%; padding: 12px; border-radius: 12px; font-size: 15px; }
+  .btn.ghost { background: #f1f1f3; color: var(--txt); }
+  .btn.plain { background: none; color: var(--pri); }
+  .btn.danger { background: #fee; color: var(--danger); }
+  .btn.green { background: var(--ok); }
+  .btn.warn { background: var(--warn); }
+  .btn.sm { padding: 5px 12px; font-size: 12px; border-radius: 8px; }
+  .btn:disabled { opacity: .5; }
+
+  /* 表单 */
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 12px; color: var(--sub); margin-bottom: 6px; }
+  .field input, .field textarea, .field select {
+    width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
+    font-size: 14px; background: #fff; outline: none; font-family: inherit;
+  }
+  .field input:focus, .field textarea:focus { border-color: var(--pri); }
+  .field textarea { resize: none; min-height: 60px; }
+  .field-row { display: flex; gap: 10px; }
+  .field-row .field { flex: 1; }
+
+  /* 列表行 */
+  .list-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .list-row:last-child { border-bottom: none; }
+  .thumb { width: 44px; height: 44px; border-radius: 10px; background: var(--pri-l); flex: none; display: flex; align-items: center; justify-content: center; font-size: 22px; overflow: hidden; }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .grow { flex: 1; min-width: 0; }
+
+  /* 状态徽标 */
+  .chip { font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 600; flex: none; }
+  .chip.pending { background: #fff3e0; color: #e67e00; }
+  .chip.preparing { background: #e8f0fe; color: #1a73e8; }
+  .chip.done { background: #e6f7ec; color: #1a9e4b; }
+  .chip.closed { background: #f2f2f4; color: #6b6b70; }
+  .st { font-size: 11px; color: var(--sub); }
+  .price-red { color: var(--pri); font-weight: 700; }
+
+  /* 订单卡片 */
+  .order-card { margin: 10px 12px; background: #fff; border-radius: 14px; padding: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+  .order-head { display: flex; align-items: center; gap: 8px; }
+  .order-head .no { font-size: 14px; font-weight: 700; }
+  .order-head .time { font-size: 10px; color: var(--sub); }
+  .order-items { margin: 8px 0 2px; }
+  .order-item { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 13px; }
+  .order-item .q { color: var(--sub); }
+  .order-item .thumb { width: 30px; height: 30px; border-radius: 7px; font-size: 15px; }
+  .order-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); }
+  .order-actions { display: flex; gap: 8px; margin-top: 10px; }
+  .reason-banner {
+    margin-top: 8px; background: #fff3f3; color: var(--danger); font-size: 12px;
+    padding: 7px 10px; border-radius: 8px;
+  }
+  .review-box { margin-top: 8px; background: var(--pri-l); border-radius: 8px; padding: 8px 10px; font-size: 12px; }
+  .review-box .stars { color: var(--warn); letter-spacing: 2px; font-size: 13px; }
+  .review-box .cmt { color: var(--txt); margin-top: 2px; }
+  .empty { text-align: center; color: var(--sub); font-size: 13px; padding: 60px 20px; }
+  .empty .big { font-size: 44px; display: block; margin-bottom: 10px; opacity: .6; }
+
+  /* 分段控件 */
+  .seg { display: flex; background: #ecedef; border-radius: 10px; padding: 3px; margin: 10px 12px 0; }
+  .seg button {
+    flex: 1; border: none; background: none; padding: 8px; border-radius: 8px; font-size: 13px; color: var(--sub); cursor: pointer;
+  }
+  .seg button.active { background: #fff; color: var(--txt); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+
+  /* 登录 */
+  .login-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 30px; }
+  .login-logo { font-size: 60px; }
+  .login-title { font-size: 20px; font-weight: 700; margin: 14px 0 4px; }
+  .login-sub { font-size: 12px; color: var(--sub); margin-bottom: 26px; }
+  .pin-input {
+    width: 100%; text-align: center; letter-spacing: 12px; font-size: 26px; font-weight: 700;
+    border: 2px solid var(--line) !important; border-radius: 14px !important; padding: 12px !important;
+  }
+  .pin-input:focus { border-color: var(--pri) !important; }
+
+  /* 管理端页头 */
+  .admin-head {
+    position: sticky; top: 0; z-index: 20; background: var(--bg);
+    display: flex; align-items: center; gap: 8px; padding: 10px 14px 6px;
+  }
+  .admin-head .back {
+    background: none; border: none; font-size: 20px; cursor: pointer; padding: 4px; color: var(--txt);
+  }
+  .admin-head .t { font-size: 16px; font-weight: 700; flex: 1; }
+
+  /* 统计 */
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px 12px; }
+  .stat-card { background: #fff; border-radius: 14px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+  .stat-card .v { font-size: 22px; font-weight: 800; color: var(--pri); }
+  .stat-card .k { font-size: 11px; color: var(--sub); margin-top: 2px; }
+  .rank-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+  .rank-row:last-child { border-bottom: none; }
+  .rank-row .idx { width: 22px; height: 22px; border-radius: 6px; background: var(--pri-l); color: var(--pri); font-weight: 700; font-size: 12px; display: flex; align-items: center; justify-content: center; flex: none; }
+
+  /* 图片选择器 */
+  .img-picker { display: flex; align-items: center; gap: 12px; }
+  .img-picker .prev { width: 74px; height: 74px; border-radius: 12px; background: var(--pri-l); border: 1px dashed #ffb99c; display: flex; align-items: center; justify-content: center; font-size: 28px; overflow: hidden; flex: none; }
+  .img-picker .prev img { width: 100%; height: 100%; object-fit: cover; }
+  .img-picker .acts { display: flex; flex-direction: column; gap: 6px; }
+  .img-picker input[type=file] { display: none; }
+
+  /* 弹层 */
+  #overlay {
+    position: absolute; inset: 0; z-index: 50; background: rgba(0,0,0,.45);
+    display: none; align-items: flex-end; justify-content: center;
+  }
+  #overlay.show { display: flex; }
+  #modal {
+    width: 100%; max-height: 88%; overflow-y: auto; background: #fff;
+    border-radius: 20px 20px 0 0; padding: 16px 16px calc(18px + env(safe-area-inset-bottom));
+    animation: up .22s ease;
+  }
+  @keyframes up { from { transform: translateY(40px); opacity: .5; } to { transform: none; opacity: 1; } }
+  #modal .m-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  #modal .m-head .t { font-size: 16px; font-weight: 700; }
+  #modal .m-close { background: #f1f1f3; border: none; width: 28px; height: 28px; border-radius: 50%; font-size: 15px; color: var(--sub); cursor: pointer; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 14px; }
+  .modal-actions .btn { flex: 1; }
+
+  /* 菜品详情 */
+  .dish-detail { display: flex; flex-direction: column; align-items: center; text-align: center; }
+  .dish-detail .big-img { width: 100%; max-height: 240px; border-radius: 14px; object-fit: cover; background: var(--pri-l); }
+  .dish-detail .big-emoji { font-size: 90px; }
+  .dish-detail .nm { font-size: 19px; font-weight: 700; margin-top: 10px; }
+  .dish-detail .ds { font-size: 13px; color: var(--sub); margin: 6px 0 4px; }
+  .dish-detail .price { font-size: 20px; color: var(--pri); font-weight: 800; margin-top: 6px; }
+  .qty-row { display: flex; align-items: center; gap: 16px; margin: 12px 0; background: var(--bg); padding: 8px 14px; border-radius: 24px; }
+  .qty-row .qbtn { width: 30px; height: 30px; border-radius: 50%; border: none; background: #fff; font-size: 18px; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+  .qty-row .num { font-size: 17px; font-weight: 700; min-width: 24px; text-align: center; }
+
+  /* 星级点评 */
+  .star-row { display: flex; justify-content: center; gap: 12px; font-size: 32px; margin: 8px 0 12px; }
+  .star-row span { cursor: pointer; filter: grayscale(1); opacity: .35; transition: all .15s; }
+  .star-row span.on { filter: none; opacity: 1; }
+
+  /* toast */
+  #toast {
+    position: absolute; left: 50%; bottom: 90px; transform: translateX(-50%);
+    background: rgba(0,0,0,.78); color: #fff; font-size: 13px; padding: 9px 18px;
+    border-radius: 20px; z-index: 99; display: none; white-space: nowrap;
+  }
+  #toast.show { display: block; animation: toastIn .2s ease; }
+  @keyframes toastIn { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
+  .tag { font-size: 10px; color: var(--sub); background: #f1f1f3; padding: 1px 7px; border-radius: 8px; }
+  .muted { color: var(--sub); }
+  .divider { height: 8px; background: transparent; }
+</style>
+</head>
+<body>
+<div id="phone">
+  <header id="topbar">
+    <div class="brand">
+      <div class="logo" id="logoEmoji">🍜</div>
+      <div>
+        <div class="name" id="storeName">云味小馆</div>
+        <div class="slogan" id="storeSlogan"></div>
+      </div>
+    </div>
+    <div class="right">
+      <div id="onlineBadge"><span class="dot"></span><span id="onlineText">检测中</span></div>
+      <button class="lock-btn" id="adminBtn" title="管理端">🔐</button>
+    </div>
+  </header>
+
+  <main id="app"></main>
+
+  <nav id="bottomnav">
+    <button class="nav-item" data-screen="home"><span class="ico">🍽️</span>点餐</button>
+    <button class="nav-item" data-screen="user"><span class="ico">🧾</span>我的</button>
+  </nav>
+
+  <div id="cartbar">
+    <div class="cart-ico">🛒<span class="cnt" id="cartCnt">0</span></div>
+    <div class="total" id="cartTotal">¥0</div>
+    <button class="go-btn" id="cartGo">去结算</button>
+  </div>
+
+  <div id="overlay"><div id="modal"></div></div>
+  <div id="toast"></div>
+</div>
+
+<script>
+'use strict';
+/* ============================================================
+ * 云味小馆 · 前端（三模式）
+ * supabase：直连 Supabase 云端（REST API + 轮询同步 + Storage 图片）→ 纯静态托管可用，多机一致
+ * online  ：连上 Node 后端（/api/state 探测成功）→ SSE 实时同步，多机一致
+ * offline ：以上都连不上 → localStorage 本机演示
+ * 探测顺序：supabase → 后端 API → localStorage
+ * ============================================================ */
+
+/* ---------------- Supabase 云端配置（纯静态部署时直连用） ---------------- */
+const SB = {
+  url: 'https://gbtlpqclycxqmnovnkjc.supabase.co',
+  key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdidGxwcWNseWN4cW1ub3Zua2pjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MjcxNDcsImV4cCI6MjEwMzIwMzE0N30.mejc2a_exW9wS-MotY4s09g9XC8AKySezYe5feDec3M',
+  bucket: 'resto',
+  _h() { return { apikey: SB.key, Authorization: 'Bearer ' + SB.key }; }
+};
+
+/* ---------------- 工具 ---------------- */
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? '' : s)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+const fmtPrice = (n) => (n % 1 === 0 ? '¥' + n : '¥' + n.toFixed(2));
+const fmtTime = (iso) => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d)) return iso;
+  const p = (x) => String(x).padStart(2, '0');
+  return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+};
+const fmtDate = (iso) => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d)) return '';
+  const p = (x) => String(x).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+};
+const genUid = () => 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const genId = (p) => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+let toastTimer = null;
+function toast(msg) {
+  const el = $('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 1800);
+}
+function openModal(html) {
+  $('modal').innerHTML = html;
+  $('overlay').classList.add('show');
+}
+function closeModal() { $('overlay').classList.remove('show'); }
+function imgHtml(dish, cls) {
+  if (dish.image) return `<img class="${cls || ''}" src="${esc(dish.image)}" alt="">`;
+  return `<div class="${cls || ''} emoji">${esc(dish.emoji || '🍽️')}</div>`;
+}
+const STATUS_TXT = { pending: '待接单', preparing: '制作中', done: '已完成', closed: '已关闭' };
+
+/* ---------------- 应用状态 ---------------- */
+const App = {
+  screen: 'home',       // home | cart | user | login | admin
+  adminTab: 'orders',   // orders | dishes | stats | settings
+  userTab: 'active',    // active | history
+  cat: '全部',
+  cart: JSON.parse(localStorage.getItem('resto_cart') || '[]'),
+  reviewOrder: null,    // 点评中的订单
+  closeOrder: null,     // 关闭中的订单
+  orderFilter: 'all',
+  dishForm: null        // 编辑中的菜品草稿
+};
+
+/* ---------------- Store（三模式数据层） ---------------- */
+const Store = {
+  mode: 'offline',        // supabase | online | offline
+  uid: localStorage.getItem('resto_uid') || genUid(),
+  dishes: [], orders: [], settings: { name: '云味小馆', pin: '123456', slogan: '' },
+  ver: 0,                 // 云端数据版本号（轮询兜底比对用）
+  listeners: new Set(),
+  es: null,
+  _poll: null,
+  _polling: false,
+  _sseAlive: true,
+  _lastSse: 0,
+  _sbInit: false,
+
+  saveUid() { localStorage.setItem('resto_uid', this.uid); },
+
+  /* ---- Supabase 直连（纯静态模式） ---- */
+  async sbGet() {
+    const r = await fetch(`${SB.url}/rest/v1/resto_state?key=eq.db&select=value`, {
+      headers: SB._h(), cache: 'no-store'
+    });
+    if (!r.ok) throw new Error('Supabase ' + r.status);
+    const rows = await r.json();
+    return rows && rows[0] && rows[0].value ? rows[0].value : null;
+  },
+  // 条件写入（乐观锁：value->>version 必须等于旧版本，防止并发互相覆盖）
+  async sbSave(value, oldVer) {
+    const r = await fetch(`${SB.url}/rest/v1/resto_state?key=eq.db&value->>version=eq.${oldVer}`, {
+      method: 'PATCH',
+      headers: Object.assign(SB._h(), { 'Content-Type': 'application/json', Prefer: 'return=representation' }),
+      body: JSON.stringify({ value, updated_at: new Date().toISOString() })
+    });
+    if (!r.ok) throw new Error('Supabase 写入 ' + r.status);
+    const rows = await r.json();
+    return Array.isArray(rows) && rows.length > 0;
+  },
+  // 首次初始化（表里还没有数据时用 upsert 插入种子）
+  async sbSeed() {
+    const seed = { dishes: this._seedDishes(), orders: [], seq: 1, version: 1,
+      settings: { name: '云味小馆', pin: '123456', slogan: '用心做好每一道菜' } };
+    const r = await fetch(`${SB.url}/rest/v1/resto_state?key=eq.db`, {
+      method: 'POST',
+      headers: Object.assign(SB._h(), { 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates' }),
+      body: JSON.stringify({ key: 'db', value: seed, updated_at: new Date().toISOString() })
+    });
+    if (!r.ok) throw new Error('Supabase 初始化 ' + r.status);
+    return seed;
+  },
+  // 上传图片到 Storage，返回公网 URL
+  async sbUploadImage(dataUrl) {
+    const mime = (dataUrl.split(';')[0] || 'image/jpeg').split(':')[1] || 'image/jpeg';
+    const ext = mime === 'image/png' ? 'png' : 'jpg';
+    const blob = await (await fetch(dataUrl)).blob();
+    const name = 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6) + '.' + ext;
+    const r = await fetch(`${SB.url}/storage/v1/object/${SB.bucket}/${name}`, {
+      method: 'POST',
+      headers: Object.assign(SB._h(), { 'Content-Type': mime, 'x-upsert': 'true' }),
+      body: blob
+    });
+    if (!r.ok) throw new Error('图片上传失败 ' + r.status);
+    return `${SB.url}/storage/v1/object/public/${SB.bucket}/${name}`;
+  },
+  // 删除 Storage 图片
+  async sbDeleteImage(url) {
+    const name = String(url || '').split('/').pop();
+    if (!name) return;
+    try {
+      await fetch(`${SB.url}/storage/v1/object/${SB.bucket}/${name}`, { method: 'DELETE', headers: SB._h() });
+    } catch (e) { /* 忽略删除失败 */ }
+  },
+  // 云端统一提交：读最新 → mutator 修改 → 条件写入（乐观锁，冲突自动重试）
+  // retry=false 表示 mutator 不可重放（如创建订单），冲突时直接报错提示
+  async commit(mutator, retry) {
+    let db, next;
+    for (let attempt = 0; attempt < (retry ? 3 : 1); attempt++) {
+      db = (await this.sbGet()) || {};
+      const oldVer = Number(db.version) || 0;
+      next = JSON.parse(JSON.stringify(db));
+      await mutator(next);
+      next.version = oldVer + 1;
+      if (await this.sbSave(next, oldVer)) {
+        this.ver = next.version;
+        await this.applyDb(next);
+        return;
+      }
+      // 版本冲突（其他设备刚写入）→ 重读最新数据后重试
+    }
+    await this.refresh();
+    throw new Error('数据刚刚被其他设备更新，请重试');
+  },
+  applyDb(d) {
+    this.dishes = Array.isArray(d.dishes) ? d.dishes : [];
+    this.orders = Array.isArray(d.orders) ? d.orders : [];
+    this.seq = Number(d.seq) || 1;
+    this.ver = Number(d.version) || 0;
+    this.settings = Object.assign({ name: '云味小馆', pin: '123456', slogan: '' }, d.settings || {});
+    this.emit();
+  },
+  _seedDishes() {
+    const mk = (id, name, cat, price, emoji, desc) => ({ id, name, cat, price, emoji, desc, on: true, image: '' });
+    return [
+      mk('d_seed_1', '招牌红烧肉', '热菜', 38, '🍖', '肥而不腻，入口即化'),
+      mk('d_seed_2', '宫保鸡丁', '热菜', 28, '🍗', '经典川味，微辣'),
+      mk('d_seed_3', '麻婆豆腐', '热菜', 18, '🌶️', '麻辣鲜香，下饭神器'),
+      mk('d_seed_4', '清炒时蔬', '素菜', 16, '🥬', '当季新鲜蔬菜'),
+      mk('d_seed_5', '番茄炒蛋', '素菜', 14, '🍅', '家常美味'),
+      mk('d_seed_6', '扬州炒饭', '主食', 15, '🍚', '粒粒分明'),
+      mk('d_seed_7', '手工水饺', '主食', 20, '🥟', '现包现煮，皮薄馅大'),
+      mk('d_seed_8', '冰镇酸梅汤', '饮品', 8, '🥤', '解腻消暑')
+    ];
+  },
+
+  async init() {
+    this.saveUid();
+    // ① 先探测 Supabase 云端（纯静态部署也走这里）
+    if (!this._sbInit) {
+      this._sbInit = true;
+      try {
+        let d = await this.sbGet();
+        if (!d) d = await this.sbSeed();
+        this.mode = 'supabase';
+        this.applyDb(d);
+        if (!this._poll) this._poll = setInterval(() => this.poll(), 10000);
+        this.emit();
+        return;
+      } catch (e) {
+        this._sbInit = false; // 允许下次重试探测
+        console.warn('[store] Supabase 不可用，回退检测后端:', e.message);
+      }
+    }
+    // ② 再探测 Node 后端（本机隧道 / 局域网模式）
+    try {
+      const r = await fetch('/api/state', { cache: 'no-store' });
+      if (!r.ok) throw new Error('api unavailable');
+      const s = await r.json();
+      this.mode = 'online';
+      this.ver = s.version || 0;
+      this.dishes = s.dishes || [];
+      this.settings = Object.assign(this.settings, s.settings || {});
+      const o = await (await fetch('/api/orders', { cache: 'no-store' })).json();
+      this.orders = o.orders || [];
+      this.es = new EventSource('/api/stream');
+      this.es.onmessage = () => { this._sseAlive = true; this._lastSse = Date.now(); this.refresh(); };
+      this.es.onerror = () => { this._sseAlive = false; }; // 连续失败则 poll 里降级为纯轮询
+      // 轮询兜底：即使 SSE 被隧道/CDN 缓冲，最多 12 秒内也能同步到最新数据
+      if (!this._poll) this._poll = setInterval(() => this.poll(), 12000);
+      this.emit();
+      return;
+    } catch (e) {
+      this.mode = 'offline';
+      this.loadLocal();
+      window.addEventListener('storage', (ev) => {
+        if (['resto_dishes', 'resto_orders', 'resto_settings'].includes(ev.key)) this.refresh();
+      });
+      this.emit();
+    }
+  },
+
+  async poll() {
+    if ((this.mode !== 'online' && this.mode !== 'supabase') || this._polling) return;
+    this._polling = true;
+    try {
+      if (this.mode === 'supabase') {
+        const d = await this.sbGet();
+        if (d && Number(d.version) !== Number(this.ver)) {
+          this.ver = Number(d.version) || 0;
+          this.applyDb(d);
+        }
+        return;
+      }
+      // online：SSE 已确认不可用（如被 CDN/隧道缓冲）→ 关闭它，纯靠轮询，避免无效重连
+      if (this.es && (this._sseAlive === false || Date.now() - this._lastSse > 45000)) {
+        try { this.es.close(); } catch (e) {}
+        this.es = null;
+      }
+      const s = await (await fetch('/api/state', { cache: 'no-store' })).json();
+      if (s.version !== undefined && Number(s.version) !== Number(this.ver)) {
+        this.ver = s.version;
+        await this.refresh();
+      }
+    } catch (e) { /* 网络抖动忽略 */ } finally { this._polling = false; }
+  },
+
+  loadLocal() {
+    // 首次使用（无任何本地数据）时预置示例菜谱
+    if (localStorage.getItem('resto_dishes') === null) {
+      localStorage.setItem('resto_dishes', JSON.stringify(this._seedDishes()));
+    }
+    try { this.dishes = JSON.parse(localStorage.getItem('resto_dishes') || '[]'); } catch (e) { this.dishes = []; }
+    try { this.orders = JSON.parse(localStorage.getItem('resto_orders') || '[]'); } catch (e) { this.orders = []; }
+    try { const st = JSON.parse(localStorage.getItem('resto_settings') || 'null'); if (st) this.settings = Object.assign(this.settings, st); } catch (e) {}
+  },
+
+  async refresh() {
+    if (this.mode === 'supabase') {
+      try {
+        const d = await this.sbGet();
+        if (d) this.applyDb(d);
+        else this.emit();
+      } catch (e) { /* 网络抖动，保留旧数据 */ }
+    } else if (this.mode === 'online') {
+      try {
+        const s = await (await fetch('/api/state', { cache: 'no-store' })).json();
+        this.ver = s.version !== undefined ? s.version : this.ver;
+        this.dishes = s.dishes || this.dishes;
+        this.settings = Object.assign(this.settings, s.settings || {});
+        const o = await (await fetch('/api/orders', { cache: 'no-store' })).json();
+        this.orders = o.orders || this.orders;
+        this.emit();
+      } catch (e) { /* 网络抖动，保留旧数据 */ }
+    } else {
+      this.loadLocal();
+      this.emit();
+    }
+  },
+
+  emit() { for (const fn of this.listeners) fn(); },
+  on(fn) { this.listeners.add(fn); return () => this.listeners.delete(fn); },
+
+  myOrders() {
+    return this.orders.filter((o) => o.uid === this.uid);
+  },
+  activeOrders() {
+    return this.myOrders().filter((o) => o.status === 'pending' || o.status === 'preparing');
+  },
+  historyOrders() {
+    return this.myOrders().filter((o) => o.status === 'done' || o.status === 'closed');
+  },
+
+  /* ---- 下单 ---- */
+  async createOrder(payload) {
+    payload = Object.assign({ uid: this.uid }, payload);
+    if (this.mode === 'supabase') {
+      let created = null;
+      await this.commit((db) => {
+        const seq = Number(db.seq) || 1;
+        created = {
+          id: genId('o'), seq, uid: this.uid,
+          table: payload.table || '', remark: payload.remark || '',
+          items: payload.items,
+          total: payload.items.reduce((s, it) => s + (Number(it.price) || 0) * (Number(it.qty) || 1), 0),
+          status: 'pending', closeReason: null, review: null, createdAt: new Date().toISOString()
+        };
+        db.seq = seq + 1;
+        (db.orders = Array.isArray(db.orders) ? db.orders : []).unshift(created);
+      }, false);
+      return created;
+    }
+    if (this.mode === 'online') {
+      const r = await fetch('/api/order/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || '下单失败');
+      await this.refresh();
+      return j.order;
+    }
+    const seq = Number(localStorage.getItem('resto_seq') || '1');
+    const order = {
+      id: genId('o'), seq, uid: this.uid,
+      table: payload.table || '', remark: payload.remark || '',
+      items: payload.items,
+      total: payload.items.reduce((s, it) => s + (Number(it.price) || 0) * (Number(it.qty) || 1), 0),
+      status: 'pending', closeReason: null, review: null, createdAt: new Date().toISOString()
+    };
+    localStorage.setItem('resto_seq', String(seq + 1));
+    const list = JSON.parse(localStorage.getItem('resto_orders') || '[]');
+    list.unshift(order);
+    localStorage.setItem('resto_orders', JSON.stringify(list));
+    await this.refresh();
+    return order;
+  },
+
+  /* ---- 订单操作 ---- */
+  async orderAction(action, payload) {
+    if (this.mode === 'supabase') {
+      let ret = null;
+      await this.commit((db) => {
+        db.orders = Array.isArray(db.orders) ? db.orders : [];
+        const o = db.orders.find((x) => x.id === payload.id);
+        if (!o) throw new Error('订单不存在');
+        if (action === 'accept' && o.status === 'pending') o.status = 'preparing';
+        else if (action === 'complete' && (o.status === 'pending' || o.status === 'preparing')) o.status = 'done';
+        else if (action === 'close') { o.status = 'closed'; o.closeReason = payload.reason || '已关闭'; o.closedAt = new Date().toISOString(); }
+        else if (action === 'delete') { const i = db.orders.indexOf(o); db.orders.splice(i, 1); }
+        else if (action === 'review') {
+          if (o.status !== 'done' && o.status !== 'closed') throw new Error('订单未完成，无法点评');
+          o.review = { rating: payload.rating, comment: payload.comment || '', at: new Date().toISOString() };
+        }
+        ret = o;
+      }, true);
+      return ret;
+    }
+    if (this.mode === 'online') {
+      const r = await fetch('/api/order/' + action, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || '操作失败');
+      await this.refresh();
+      return j.order;
+    }
+    const list = JSON.parse(localStorage.getItem('resto_orders') || '[]');
+    const o = list.find((x) => x.id === payload.id);
+    if (!o) throw new Error('订单不存在');
+    if (action === 'accept' && o.status === 'pending') o.status = 'preparing';
+    else if (action === 'complete' && (o.status === 'pending' || o.status === 'preparing')) o.status = 'done';
+    else if (action === 'close') { o.status = 'closed'; o.closeReason = payload.reason || '已关闭'; o.closedAt = new Date().toISOString(); }
+    else if (action === 'delete') { const i = list.indexOf(o); list.splice(i, 1); }
+    else if (action === 'review') {
+      if (o.status !== 'done' && o.status !== 'closed') throw new Error('订单未完成，无法点评');
+      o.review = { rating: payload.rating, comment: payload.comment || '', at: new Date().toISOString() };
+    }
+    localStorage.setItem('resto_orders', JSON.stringify(list));
+    await this.refresh();
+    return o;
+  },
+
+  /* ---- 菜谱 ---- */
+  async saveDish(dish) {
+    if (this.mode === 'supabase') {
+      // 新选图片（data URL）→ 先上传 Storage 换取公网 URL
+      if (dish.image && dish.image.startsWith('data:')) {
+        dish.image = await this.sbUploadImage(dish.image);
+      }
+      await this.commit((db) => {
+        db.dishes = Array.isArray(db.dishes) ? db.dishes : [];
+        const i = db.dishes.findIndex((x) => x.id === dish.id);
+        if (i >= 0) {
+          const old = db.dishes[i];
+          // 换图了 → 清理云端旧图
+          if (old.image && old.image !== dish.image && old.image.includes('/storage/v1/object/public/')) {
+            this.sbDeleteImage(old.image);
+          }
+          db.dishes[i] = dish;
+        } else db.dishes.unshift(dish);
+      }, true);
+      return dish;
+    }
+    if (this.mode === 'online') {
+      const r = await fetch('/api/dish/update', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dish }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || '保存失败');
+      await this.refresh();
+      return j.dish;
+    }
+    const list = JSON.parse(localStorage.getItem('resto_dishes') || '[]');
+    const i = list.findIndex((x) => x.id === dish.id);
+    if (i >= 0) list[i] = dish; else list.unshift(dish);
+    localStorage.setItem('resto_dishes', JSON.stringify(list));
+    await this.refresh();
+    return dish;
+  },
+  async toggleDish(id) {
+    if (this.mode === 'supabase') {
+      await this.commit((db) => {
+        db.dishes = Array.isArray(db.dishes) ? db.dishes : [];
+        const d = db.dishes.find((x) => x.id === id);
+        if (!d) throw new Error('菜品不存在');
+        d.on = !d.on;
+      }, true);
+      return;
+    }
+    if (this.mode === 'online') {
+      const r = await fetch('/api/dish/toggle', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+      if (!r.ok) throw new Error('操作失败');
+      await this.refresh();
+      return;
+    }
+    const list = JSON.parse(localStorage.getItem('resto_dishes') || '[]');
+    const d = list.find((x) => x.id === id);
+    if (!d) throw new Error('菜品不存在');
+    d.on = !d.on;
+    localStorage.setItem('resto_dishes', JSON.stringify(list));
+    await this.refresh();
+  },
+  async delDish(id) {
+    if (this.mode === 'supabase') {
+      await this.commit((db) => {
+        db.dishes = Array.isArray(db.dishes) ? db.dishes : [];
+        const i = db.dishes.findIndex((x) => x.id === id);
+        if (i >= 0) {
+          const d = db.dishes[i];
+          if (d.image && d.image.includes('/storage/v1/object/public/')) this.sbDeleteImage(d.image);
+          db.dishes.splice(i, 1);
+        }
+      }, true);
+      return;
+    }
+    if (this.mode === 'online') {
+      const r = await fetch('/api/dish/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+      if (!r.ok) throw new Error('删除失败');
+      await this.refresh();
+      return;
+    }
+    let list = JSON.parse(localStorage.getItem('resto_dishes') || '[]');
+    list = list.filter((x) => x.id !== id);
+    localStorage.setItem('resto_dishes', JSON.stringify(list));
+    await this.refresh();
+  },
+  async saveSettings(s) {
+    if (this.mode === 'supabase') {
+      await this.commit((db) => {
+        db.settings = Object.assign({ name: '云味小馆', pin: '123456', slogan: '' }, db.settings || {}, s);
+      }, true);
+      return this.settings;
+    }
+    if (this.mode === 'online') {
+      const r = await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ settings: s }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || '保存失败');
+      await this.refresh();
+      return j.settings;
+    }
+    const cur = JSON.parse(localStorage.getItem('resto_settings') || 'null') || { name: '云味小馆', pin: '123456', slogan: '' };
+    const next = Object.assign(cur, s);
+    localStorage.setItem('resto_settings', JSON.stringify(next));
+    await this.refresh();
+    return next;
+  }
+};
+
+/* ---------------- 渲染 ---------------- */
+function dishImgEl(dish) {
+  if (dish.image) return `<div class="img-wrap">${imgHtml(dish)}</div>`;
+  return `<div class="img-wrap">${imgHtml(dish)}</div>`;
+}
+
+function renderHome() {
+  const cats = ['全部', ...new Set(Store.dishes.map((d) => d.cat).filter(Boolean))];
+  const list = App.cat === '全部' ? Store.dishes : Store.dishes.filter((d) => d.cat === App.cat);
+  $('app').innerHTML = `
+    <div class="cats">
+      ${cats.map((c) => `<button class="cat-chip ${c === App.cat ? 'active' : ''}" onclick="App.cat='${esc(c)}';render()">${esc(c)}</button>`).join('')}
+    </div>
+    ${list.length ? `<div class="dish-grid">
+      ${list.map((d) => `
+        <div class="dish-card ${d.on ? '' : 'off'}" onclick="openDishDetail('${d.id}')">
+          ${d.on ? '' : '<div class="sold">已售罄</div>'}
+          ${dishImgEl(d)}
+          <div class="body">
+            <div class="nm">${esc(d.name)}</div>
+            ${d.desc ? `<div class="ds">${esc(d.desc)}</div>` : ''}
+            <div class="row">
+              <div class="price"><small>¥</small>${Number(d.price).toFixed(Number(d.price) % 1 ? 2 : 0)}</div>
+              <button class="add-btn" ${d.on ? '' : 'disabled'} onclick="event.stopPropagation();addToCart('${d.id}')">+</button>
+            </div>
+          </div>
+        </div>`).join('')}
+    </div>` : '<div class="empty"><span class="big">🍽️</span>暂无菜品<br><span style="font-size:11px">管理员可在「管理端」添加菜品</span></div>'}
+  `;
+}
+
+function renderUser() {
+  const active = Store.activeOrders();
+  const history = Store.historyOrders().slice(0, 50);
+  $('app').innerHTML = `
+    <div class="seg">
+      <button class="${App.userTab === 'active' ? 'active' : ''}" onclick="App.userTab='active';render()">进行中 ${active.length ? '(' + active.length + ')' : ''}</button>
+      <button class="${App.userTab === 'history' ? 'active' : ''}" onclick="App.userTab='history';render()">我的足迹 🐾</button>
+    </div>
+    ${App.userTab === 'active' ? renderActive(active) : renderHistory(history)}
+  `;
+}
+
+function renderActive(list) {
+  if (!list.length) return '<div class="empty"><span class="big">📭</span>暂无进行中的订单<br><span style="font-size:11px">去「点餐」下一单吧</span></div>';
+  return list.map((o) => orderCard(o, 'user')).join('');
+}
+
+function renderHistory(list) {
+  if (!list.length) return '<div class="empty"><span class="big">🐾</span>还没有吃到的菜品<br><span style="font-size:11px">完成订单后会出现在这里，还能点评当时的味道</span></div>';
+  return list.map((o) => orderCard(o, 'user')).join('');
+}
+
+function orderCard(o, view) {
+  const itemsHtml = o.items.map((it) => `
+    <div class="order-item">
+      <div class="thumb">${imgHtml(it, '')}</div>
+      <div class="grow">${esc(it.name)}</div>
+      <div class="q">x${it.qty}</div>
+      <div>${fmtPrice(it.price * it.qty)}</div>
+    </div>`).join('');
+  const statusChip = `<span class="chip ${o.status}">${STATUS_TXT[o.status] || o.status}</span>`;
+  const reason = o.status === 'closed' && o.closeReason ? `<div class="reason-banner">⚠️ 已关闭：${esc(o.closeReason)}</div>` : '';
+  const reviewHtml = o.review ? `
+    <div class="review-box">
+      <div class="stars">${'★'.repeat(o.review.rating)}${'☆'.repeat(5 - o.review.rating)}</div>
+      ${o.review.comment ? `<div class="cmt">${esc(o.review.comment)}</div>` : ''}
+      <div class="st" style="margin-top:2px">${fmtTime(o.review.at)} 点评</div>
+    </div>` : '';
+  const actions = view === 'user'
+    ? (o.status === 'done' && !o.review ? `<button class="btn sm" onclick="openReview('${o.id}')">⭐ 点评味道</button>` : '')
+    : orderAdminActions(o);
+
+  return `
+    <div class="order-card">
+      <div class="order-head">
+        <span class="no">#${o.seq} ${o.table ? '· ' + esc(o.table) + ' 桌' : ''}</span>
+        ${statusChip}
+        <span class="time" style="margin-left:auto">${fmtTime(o.createdAt)}</span>
+      </div>
+      <div class="order-items">${itemsHtml}</div>
+      ${reason}
+      ${reviewHtml}
+      <div class="order-foot">
+        <span class="st">共 ${o.items.reduce((s, it) => s + it.qty, 0)} 份</span>
+        <span class="price-red">${fmtPrice(o.total)}</span>
+      </div>
+      ${actions ? `<div class="order-actions">${actions}</div>` : ''}
+    </div>`;
+}
+
+function orderAdminActions(o) {
+  if (o.status === 'pending') return `
+    <button class="btn green sm" onclick="doAction('accept','${o.id}')">✅ 接单</button>
+    <button class="btn warn sm" onclick="openClose('${o.id}')">关闭</button>
+    <button class="btn ghost sm" onclick="openOrderDetail('${o.id}')">详情</button>`;
+  if (o.status === 'preparing') return `
+    <button class="btn sm" onclick="doAction('complete','${o.id}')">🍳 完成</button>
+    <button class="btn warn sm" onclick="openClose('${o.id}')">关闭</button>
+    <button class="btn ghost sm" onclick="openOrderDetail('${o.id}')">详情</button>`;
+  return `
+    <button class="btn ghost sm" onclick="openOrderDetail('${o.id}')">详情</button>
+    <button class="btn danger sm" onclick="doAction('delete','${o.id}')">删除</button>`;
+}
+
+function renderAdmin() {
+  const tabs = [
+    ['orders', '📋 订单'], ['dishes', '🍲 菜谱'], ['stats', '📊 统计'], ['settings', '⚙️ 设置']
+  ];
+  $('app').innerHTML = `
+    <div class="admin-head">
+      <button class="back" onclick="App.screen='home';render()">←</button>
+      <div class="t">管理端</div>
+      <button class="btn sm ghost" onclick="switchToUser()">使用端</button>
+    </div>
+    <div class="seg">
+      ${tabs.map(([k, l]) => `<button class="${App.adminTab === k ? 'active' : ''}" onclick="App.adminTab='${k}';render()">${l}</button>`).join('')}
+    </div>
+    <div style="height:8px"></div>
+    ${App.adminTab === 'orders' ? renderAdminOrders() : ''}
+    ${App.adminTab === 'dishes' ? renderAdminDishes() : ''}
+    ${App.adminTab === 'stats' ? renderStats() : ''}
+    ${App.adminTab === 'settings' ? renderSettings() : ''}
+  `;
+}
+
+function renderAdminOrders() {
+  const filters = [['all', '全部'], ['pending', '待接单'], ['preparing', '制作中'], ['done', '已完成'], ['closed', '已关闭']];
+  const list = App.orderFilter === 'all' ? Store.orders : Store.orders.filter((o) => o.status === App.orderFilter);
+  const pendingCount = Store.orders.filter((o) => o.status === 'pending').length;
+  return `
+    <div class="sec-title">订单管理
+      ${pendingCount ? `<span class="tag" style="background:var(--pri);color:#fff">${pendingCount} 单待接</span>` : ''}
+    </div>
+    <div class="cats" style="padding-top:0">
+      ${filters.map(([k, l]) => `<button class="cat-chip ${App.orderFilter === k ? 'active' : ''}" onclick="App.orderFilter='${k}';render()">${l}</button>`).join('')}
+    </div>
+    ${list.length ? list.map((o) => orderCard(o, 'admin')).join('')
+      : '<div class="empty"><span class="big">📋</span>暂无订单</div>'}
+  `;
+}
+
+function renderAdminDishes() {
+  return `
+    <div class="sec-title">菜谱管理 <button class="btn sm" onclick="openDishForm()">＋ 新增菜品</button></div>
+    ${Store.dishes.length ? Store.dishes.map((d) => `
+      <div class="card" style="display:flex;align-items:center;gap:10px;margin:8px 12px;padding:10px">
+        <div class="thumb">${imgHtml(d, '')}</div>
+        <div class="grow">
+          <div style="font-weight:600;font-size:14px">${esc(d.name)} <span class="chip ${d.on ? 'done' : 'closed'}">${d.on ? '在售' : '下架'}</span></div>
+          <div class="st">${esc(d.cat)} · ${fmtPrice(d.price)} ${d.emoji ? '· ' + esc(d.emoji) : ''}</div>
+          ${d.desc ? `<div class="st" style="margin-top:2px">${esc(d.desc)}</div>` : ''}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <button class="btn sm ghost" onclick="toggleDish('${d.id}')">${d.on ? '下架' : '上架'}</button>
+          <button class="btn sm" onclick="openDishForm('${d.id}')">编辑</button>
+          <button class="btn sm danger" onclick="delDish('${d.id}')">删除</button>
+        </div>
+      </div>`).join('')
+      : '<div class="empty"><span class="big">🍲</span>菜谱为空，点击右上角添加</div>'}
+  `;
+}
+
+function renderStats() {
+  const today = fmtDate(new Date().toISOString());
+  const todayOrders = Store.orders.filter((o) => fmtDate(o.createdAt) === today);
+  const doneOrders = Store.orders.filter((o) => o.status === 'done');
+  const revenue = doneOrders.reduce((s, o) => s + o.total, 0);
+  const todayRevenue = todayOrders.filter((o) => o.status === 'done').reduce((s, o) => s + o.total, 0);
+  const qtyMap = {};
+  Store.orders.forEach((o) => o.items.forEach((it) => { qtyMap[it.name] = (qtyMap[it.name] || 0) + it.qty; }));
+  const rank = Object.entries(qtyMap).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  return `
+    <div class="stat-grid">
+      <div class="stat-card"><div class="v">${todayOrders.length}</div><div class="k">今日订单</div></div>
+      <div class="stat-card"><div class="v">${todayRevenue ? fmtPrice(todayRevenue) : '¥0'}</div><div class="k">今日营业额</div></div>
+      <div class="stat-card"><div class="v">${doneOrders.length}</div><div class="k">累计完成</div></div>
+      <div class="stat-card"><div class="v">${fmtPrice(revenue)}</div><div class="k">累计营业额</div></div>
+    </div>
+    <div class="sec-title">热销菜品 TOP5</div>
+    <div class="card" style="padding:6px 12px">
+      ${rank.length ? rank.map(([n, q], i) => `
+        <div class="rank-row"><span class="idx">${i + 1}</span><span class="grow">${esc(n)}</span><b>${q} 份</b></div>`).join('')
+        : '<div class="empty" style="padding:24px 0">暂无销量数据</div>'}
+    </div>
+  `;
+}
+
+function renderSettings() {
+  const s = Store.settings;
+  return `
+    <div class="sec-title">店铺设置</div>
+    <div class="card">
+      <div class="field">
+        <label>店名</label>
+        <input id="setName" value="${esc(s.name)}" maxlength="20" placeholder="云味小馆">
+      </div>
+      <div class="field">
+        <label>口号（显示在顶部）</label>
+        <input id="setSlogan" value="${esc(s.slogan || '')}" maxlength="60" placeholder="用心做好每一道菜">
+      </div>
+      <div class="field">
+        <label>管理端密码（4-8 位数字）</label>
+        <input id="setPin" type="password" value="${esc(s.pin)}" maxlength="8" placeholder="123456" inputmode="numeric">
+      </div>
+      <button class="btn block" onclick="saveSettings()">保存设置</button>
+    </div>
+    <div class="card" style="font-size:12px;color:var(--sub);line-height:1.8">
+      <b style="color:var(--txt)">关于同步</b><br>
+      ${Store.mode === 'supabase'
+        ? '当前为 <b style="color:var(--ok)">云端模式</b>：数据直连 Supabase 云端数据库，多台手机实时同步（最长 10 秒），电脑关机也能访问。'
+        : Store.mode === 'online'
+        ? '当前为 <b style="color:var(--ok)">在线模式</b>：连接 Node 服务，多台手机通过 SSE 实时同步，数据保存在服务器 data/ 目录。'
+        : '当前为 <b style="color:var(--warn)">本机模式</b>：未连接云端，数据仅保存在本机浏览器（localStorage）。'}
+    </div>
+  `;
+}
+
+/* ---------------- 渲染入口 ---------------- */
+function render() {
+  const nav = $('bottomnav');
+  const cartbar = $('cartbar');
+  nav.classList.remove('hidden');
+  cartbar.classList.remove('show');
+  $('app').classList.remove('no-pad');
+
+  if (App.screen === 'home') {
+    renderHome();
+    nav.querySelectorAll('.nav-item').forEach((b) => b.classList.toggle('active', b.dataset.screen === 'home'));
+    updateCartBar();
+  } else if (App.screen === 'cart') {
+    renderCart();
+    nav.classList.add('hidden');
+  } else if (App.screen === 'user') {
+    renderUser();
+    nav.querySelectorAll('.nav-item').forEach((b) => b.classList.toggle('active', b.dataset.screen === 'user'));
+  } else if (App.screen === 'login') {
+    renderLogin();
+    nav.classList.add('hidden');
+  } else if (App.screen === 'admin') {
+    renderAdmin();
+    nav.classList.add('hidden');
+    $('app').classList.add('no-pad');
+  }
+  updateTopbar();
+  $('app').scrollTop = 0;
+}
+
+function updateTopbar() {
+  $('storeName').textContent = Store.settings.name || '云味小馆';
+  $('storeSlogan').textContent = Store.settings.slogan || '';
+  $('logoEmoji').textContent = '🍜';
+  const b = $('onlineBadge');
+  b.classList.remove('online', 'offline');
+  if (Store.mode === 'online' || Store.mode === 'supabase') { b.classList.add('online'); $('onlineText').textContent = '已同步'; }
+  else if (Store.mode === 'offline') { b.classList.add('offline'); $('onlineText').textContent = '本机模式'; }
+  else { $('onlineText').textContent = '检测中'; }
+}
+
+function updateCartBar() {
+  const bar = $('cartbar');
+  if (App.screen !== 'home' || !App.cart.length) { bar.classList.remove('show'); return; }
+  const cnt = App.cart.reduce((s, it) => s + it.qty, 0);
+  const total = App.cart.reduce((s, it) => s + it.price * it.qty, 0);
+  $('cartCnt').textContent = cnt;
+  $('cartTotal').innerHTML = `${fmtPrice(total)} <small>共${cnt}份</small>`;
+  bar.classList.add('show');
+}
+
+/* ---------------- 购物车 ---------------- */
+function addToCart(id) {
+  const d = Store.dishes.find((x) => x.id === id);
+  if (!d || !d.on) return;
+  const it = App.cart.find((x) => x.id === id);
+  if (it) it.qty++;
+  else App.cart.push({ id: d.id, name: d.name, price: d.price, qty: 1, emoji: d.emoji, image: d.image });
+  saveCart();
+  updateCartBar();
+}
+function changeQty(id, delta) {
+  const it = App.cart.find((x) => x.id === id);
+  if (!it) return;
+  it.qty += delta;
+  if (it.qty <= 0) App.cart = App.cart.filter((x) => x.id !== id);
+  saveCart();
+  render();
+}
+function saveCart() { localStorage.setItem('resto_cart', JSON.stringify(App.cart)); }
+
+function renderCart() {
+  const total = App.cart.reduce((s, it) => s + it.price * it.qty, 0);
+  $('app').innerHTML = `
+    <div class="admin-head">
+      <button class="back" onclick="App.screen='home';render()">←</button>
+      <div class="t">确认订单</div>
+    </div>
+    <div class="card">
+      <div class="field-row">
+        <div class="field"><label>桌号</label><input id="orderTable" placeholder="如：A3 / 外带" maxlength="20"></div>
+        <div class="field"><label>人数</label><input id="orderPeople" type="number" inputmode="numeric" placeholder="选填" min="1" max="99"></div>
+      </div>
+      <div class="field">
+        <label>备注（口味、忌口等）</label>
+        <textarea id="orderRemark" placeholder="如：少辣、不要香菜…" maxlength="200"></textarea>
+      </div>
+    </div>
+    <div class="sec-title">已选菜品</div>
+    <div class="card">
+      ${App.cart.map((it) => `
+        <div class="list-row">
+          <div class="thumb">${imgHtml(it, '')}</div>
+          <div class="grow">
+            <div style="font-size:14px;font-weight:600">${esc(it.name)}</div>
+            <div class="st">${fmtPrice(it.price)}</div>
+          </div>
+          <div class="qty-row" style="margin:0">
+            <button class="qbtn" onclick="changeQty('${it.id}',-1)">−</button>
+            <span class="num">${it.qty}</span>
+            <button class="qbtn" onclick="changeQty('${it.id}',1)">+</button>
+          </div>
+          <div class="price-red" style="min-width:52px;text-align:right">${fmtPrice(it.price * it.qty)}</div>
+        </div>`).join('')}
+      <div class="order-foot" style="border-top:1px solid var(--line);margin-top:10px">
+        <span class="st">合计</span><span class="price-red" style="font-size:18px">${fmtPrice(total)}</span>
+      </div>
+    </div>
+    <div style="padding:4px 12px 20px">
+      <button class="btn block" onclick="submitOrder()">提交订单</button>
+    </div>
+  `;
+}
+
+async function submitOrder() {
+  const table = $('orderTable').value.trim();
+  const remark = $('orderRemark').value.trim();
+  if (!App.cart.length) return toast('购物车是空的');
+  const btn = document.querySelector('#app .btn.block');
+  btn.disabled = true;
+  try {
+    await Store.createOrder({ table, remark, items: App.cart });
+    App.cart = [];
+    saveCart();
+    App.screen = 'user';
+    App.userTab = 'active';
+    toast('下单成功，等待接单 🎉');
+  } catch (e) {
+    toast(e.message || '下单失败');
+  } finally {
+    render();
+  }
+}
+
+/* ---------------- 菜品详情 ---------------- */
+function openDishDetail(id) {
+  const d = Store.dishes.find((x) => x.id === id);
+  if (!d) return;
+  let qty = App.cart.find((x) => x.id === id)?.qty || 0;
+  openModal(`
+    <div class="dish-detail">
+      ${d.image ? `<img class="big-img" src="${esc(d.image)}">` : `<div class="big-emoji">${esc(d.emoji || '🍽️')}</div>`}
+      <div class="nm">${esc(d.name)}</div>
+      ${d.desc ? `<div class="ds">${esc(d.desc)}</div>` : ''}
+      <div class="price">${fmtPrice(d.price)}</div>
+      <div class="qty-row">
+        <button class="qbtn" onclick="detailQty(-1)">−</button>
+        <span class="num" id="detailQty">${qty}</span>
+        <button class="qbtn" onclick="detailQty(1)">+</button>
+      </div>
+      <button class="btn block ${d.on ? '' : 'disabled'}" onclick="detailAdd('${d.id}')">${d.on ? '加入购物车' : '已售罄'}</button>
+    </div>`);
+  window._detailQty = qty;
+}
+window._detailQty = 0;
+function detailQty(delta) {
+  window._detailQty = Math.max(0, window._detailQty + delta);
+  $('detailQty').textContent = window._detailQty;
+}
+function detailAdd(id) {
+  const d = Store.dishes.find((x) => x.id === id);
+  if (!d || !d.on) return;
+  if (window._detailQty > 0) {
+    const it = App.cart.find((x) => x.id === id);
+    if (it) it.qty += window._detailQty;
+    else App.cart.push({ id: d.id, name: d.name, price: d.price, qty: window._detailQty, emoji: d.emoji, image: d.image });
+    saveCart();
+    toast('已加入购物车 🛒');
+  }
+  closeModal();
+  updateCartBar();
+}
+
+/* ---------------- 使用端：点评 ---------------- */
+function openReview(id) {
+  const o = Store.orders.find((x) => x.id === id);
+  if (!o) return;
+  App.reviewOrder = o;
+  let rating = 5;
+  window._rating = 5;
+  openModal(`
+    <div class="m-head"><div class="t">点评 #${o.seq} 的味道</div><button class="m-close" onclick="closeModal()">✕</button></div>
+    <div style="font-size:12px;color:var(--sub);margin-bottom:10px">${esc(o.items.map((i) => i.name).join('、'))}</div>
+    <div style="text-align:center;font-size:12px;color:var(--sub)">当时味道如何？</div>
+    <div class="star-row" id="starRow">
+      ${[1, 2, 3, 4, 5].map((i) => `<span data-v="${i}" class="on">★</span>`).join('')}
+    </div>
+    <div class="field"><textarea id="reviewComment" placeholder="说说这道菜当时的味道…（选填）" maxlength="300"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="closeModal()">取消</button>
+      <button class="btn" onclick="saveReview('${o.id}')">保存点评</button>
+    </div>`);
+  $('starRow').querySelectorAll('span').forEach((sp) => {
+    sp.onclick = () => {
+      rating = Number(sp.dataset.v);
+      window._rating = rating;
+      $('starRow').querySelectorAll('span').forEach((s) => s.classList.toggle('on', Number(s.dataset.v) <= rating));
+    };
+  });
+}
+async function saveReview(id) {
+  const cmt = $('reviewComment').value.trim();
+  try {
+    await Store.orderAction('review', { id, rating: window._rating, comment: cmt });
+    closeModal();
+    toast('点评已保存 ⭐');
+  } catch (e) { toast(e.message || '保存失败'); }
+}
+
+/* ---------------- 管理端：订单动作 ---------------- */
+async function doAction(action, id) {
+  try {
+    const map = { accept: '已接单，开始制作 ✅', complete: '订单已完成 🍳', delete: '订单已删除' };
+    await Store.orderAction(action, { id });
+    toast(map[action] || '操作成功');
+    render();
+  } catch (e) { toast(e.message || '操作失败'); }
+}
+function openClose(id) {
+  App.closeOrder = id;
+  openModal(`
+    <div class="m-head"><div class="t">关闭订单</div><button class="m-close" onclick="closeModal()">✕</button></div>
+    <div class="field">
+      <label>关闭原因（会推送给顾客）</label>
+      <textarea id="closeReason" placeholder="如：菜品售罄 / 顾客取消 / 已结账" maxlength="100"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="closeModal()">取消</button>
+      <button class="btn warn" onclick="submitClose()">确认关闭</button>
+    </div>`);
+}
+async function submitClose() {
+  const reason = $('closeReason').value.trim();
+  if (!reason) return toast('请填写关闭原因');
+  try {
+    await Store.orderAction('close', { id: App.closeOrder, reason });
+    closeModal();
+    toast('已关闭，原因已推送');
+    render();
+  } catch (e) { toast(e.message || '操作失败'); }
+}
+function openOrderDetail(id) {
+  const o = Store.orders.find((x) => x.id === id);
+  if (!o) return;
+  openModal(`
+    <div class="m-head"><div class="t">订单 #${o.seq} 详情</div><button class="m-close" onclick="closeModal()">✕</button></div>
+    <div style="font-size:13px;line-height:2">
+      <div><span class="st">下单时间：</span>${fmtTime(o.createdAt)}</div>
+      <div><span class="st">桌号：</span>${esc(o.table || '—')} <span class="st">顾客ID：</span>${esc(o.uid)}</div>
+      <div><span class="st">状态：</span><span class="chip ${o.status}">${STATUS_TXT[o.status]}</span></div>
+      ${o.remark ? `<div><span class="st">备注：</span>${esc(o.remark)}</div>` : ''}
+      ${o.closeReason ? `<div><span class="st">关闭原因：</span>${esc(o.closeReason)}</div>` : ''}
+      ${o.review ? `<div><span class="st">顾客点评：</span>${'★'.repeat(o.review.rating)}${'☆'.repeat(5 - o.review.rating)} ${esc(o.review.comment)}</div>` : ''}
+    </div>
+    <div class="order-items" style="margin-top:8px">
+      ${o.items.map((it) => `<div class="order-item"><div class="thumb">${imgHtml(it, '')}</div><div class="grow">${esc(it.name)}</div><div class="q">x${it.qty}</div><div>${fmtPrice(it.price * it.qty)}</div></div>`).join('')}
+    </div>
+    <div class="order-foot"><span class="st">合计</span><span class="price-red">${fmtPrice(o.total)}</span></div>
+    <div class="modal-actions">
+      ${o.status === 'pending' ? `<button class="btn green" onclick="doAction('accept','${o.id}');closeModal()">接单</button>` : ''}
+      ${o.status === 'pending' || o.status === 'preparing' ? `<button class="btn" onclick="doAction('complete','${o.id}');closeModal()">完成</button>` : ''}
+      ${o.status === 'pending' || o.status === 'preparing' ? `<button class="btn warn" onclick="closeModal();openClose('${o.id}')">关闭</button>` : ''}
+      <button class="btn ghost" onclick="closeModal()">关闭窗口</button>
+    </div>`);
+}
+
+/* ---------------- 管理端：菜谱 ---------------- */
+function openDishForm(id) {
+  const d = id ? Store.dishes.find((x) => x.id === id) : null;
+  App.dishForm = d
+    ? JSON.parse(JSON.stringify(d))
+    : { id: genId('d'), name: '', cat: '热菜', price: 0, emoji: '🍽️', desc: '', on: true, image: '' };
+  const f = App.dishForm;
+  openModal(`
+    <div class="m-head"><div class="t">${d ? '编辑菜品' : '新增菜品'}</div><button class="m-close" onclick="closeModal()">✕</button></div>
+    <div class="field">
+      <label>菜品图片（点击选择，支持拍照/相册）</label>
+      <div class="img-picker">
+        <div class="prev" id="dishImgPrev">${f.image ? `<img src="${esc(f.image)}">` : esc(f.emoji || '🍽️')}</div>
+        <div class="acts">
+          <button class="btn sm ghost" onclick="$('dishImgInput').click()">📷 选择图片</button>
+          ${f.image ? '<button class="btn sm danger" onclick="clearDishImg()">移除图片</button>' : ''}
+        </div>
+      </div>
+      <input type="file" id="dishImgInput" accept="image/*" style="display:none" onchange="pickDishImg(this)">
+      <div class="st" style="margin-top:6px">${Store.mode === 'supabase' ? '图片将上传到云端存储，所有设备可见。' : Store.mode === 'online' ? '图片将保存到服务器，所有设备可见。' : '本机模式下图片只存在当前浏览器，建议部署云端。'}</div>
+    </div>
+    <div class="field"><label>菜名 *</label><input id="fName" value="${esc(f.name)}" maxlength="30" placeholder="如：招牌红烧肉"></div>
+    <div class="field-row">
+      <div class="field"><label>分类</label><input id="fCat" value="${esc(f.cat)}" maxlength="12" placeholder="热菜/凉菜/主食"></div>
+      <div class="field"><label>价格（元）*</label><input id="fPrice" type="number" inputmode="decimal" value="${f.price}" min="0" step="0.5" placeholder="0.00"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Emoji 图标</label><input id="fEmoji" value="${esc(f.emoji)}" maxlength="4" placeholder="🍽️"></div>
+      <div class="field"><label>状态</label>
+        <select id="fOn">
+          <option value="1" ${f.on ? 'selected' : ''}>在售</option>
+          <option value="0" ${f.on ? '' : 'selected'}>下架</option>
+        </select>
+      </div>
+    </div>
+    <div class="field"><label>描述</label><textarea id="fDesc" maxlength="120" placeholder="口味、食材等">${esc(f.desc)}</textarea></div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="closeModal()">取消</button>
+      <button class="btn" onclick="saveDishForm()">保存</button>
+    </div>`);
+}
+function pickDishImg(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  compressImage(file).then((dataUrl) => {
+    App.dishForm.image = dataUrl;
+    $('dishImgPrev').innerHTML = `<img src="${dataUrl}">`;
+    toast('图片已选择');
+  }).catch(() => toast('图片读取失败'));
+}
+function clearDishImg() {
+  App.dishForm.image = '';
+  $('dishImgPrev').textContent = App.dishForm.emoji || '🍽️';
+  const btns = document.querySelectorAll('.img-picker .acts .btn.danger');
+  btns.forEach((b) => b.remove());
+}
+function compressImage(file, maxW = 900, quality = 0.82) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxW / img.width);
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        const type = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+        resolve(canvas.toDataURL(type, quality));
+      };
+      img.onerror = reject;
+      img.src = reader.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+async function saveDishForm() {
+  const f = App.dishForm;
+  const name = $('fName').value.trim();
+  const price = Number($('fPrice').value);
+  if (!name) return toast('请填写菜名');
+  if (isNaN(price) || price < 0) return toast('价格不合法');
+  f.name = name;
+  f.cat = ($('fCat').value.trim() || '其他');
+  f.price = price;
+  f.emoji = ($('fEmoji').value.trim() || '🍽️');
+  f.on = $('fOn').value === '1';
+  f.desc = $('fDesc').value.trim();
+  try {
+    const saved = await Store.saveDish(f);
+    closeModal();
+    toast(saved.id ? '菜品已保存 ✅' : '保存成功');
+    App.dishForm = null;
+    render();
+  } catch (e) { toast(e.message || '保存失败'); }
+}
+async function toggleDish(id) {
+  try { await Store.toggleDish(id); render(); } catch (e) { toast(e.message); }
+}
+async function delDish(id) {
+  if (!confirm('确定删除该菜品？')) return;
+  try { await Store.delDish(id); toast('已删除'); render(); } catch (e) { toast(e.message); }
+}
+
+/* ---------------- 设置 ---------------- */
+async function saveSettings() {
+  const name = $('setName').value.trim();
+  const slogan = $('setSlogan').value.trim();
+  const pin = $('setPin').value.trim();
+  if (!name) return toast('店名不能为空');
+  if (!/^\d{4,8}$/.test(pin)) return toast('密码需为 4-8 位数字');
+  try {
+    await Store.saveSettings({ name, slogan, pin });
+    toast('设置已保存 ✅');
+    render();
+  } catch (e) { toast(e.message); }
+}
+
+/* ---------------- 登录 / 角色 ---------------- */
+function renderLogin() {
+  $('app').innerHTML = `
+    <div class="login-wrap">
+      <div class="login-logo">🔐</div>
+      <div class="login-title">管理端登录</div>
+      <div class="login-sub">输入管理密码（默认 123456）</div>
+      <div class="field" style="width:100%;max-width:260px">
+        <input id="pinInput" class="pin-input" type="password" inputmode="numeric" maxlength="8" placeholder="••••••" autocomplete="off">
+      </div>
+      <button class="btn block" style="max-width:260px" onclick="doLogin()">进入管理端</button>
+      <button class="btn plain" style="margin-top:14px" onclick="App.screen='home';render()">返回使用端</button>
+    </div>`;
+  setTimeout(() => $('pinInput').focus(), 80);
+  $('pinInput').onkeydown = (e) => { if (e.key === 'Enter') doLogin(); };
+}
+function doLogin() {
+  const pin = $('pinInput').value.trim();
+  if (pin === String(Store.settings.pin)) {
+    App.screen = 'admin';
+    App.adminTab = 'orders';
+    App.orderFilter = 'all';
+    render();
+    toast('欢迎回来，老板 👋');
+  } else {
+    toast('密码错误');
+    $('pinInput').value = '';
+  }
+}
+function switchToUser() {
+  App.screen = 'home';
+  render();
+}
+
+/* ---------------- 事件绑定 ---------------- */
+function bindEvents() {
+  $('adminBtn').onclick = () => { App.screen = 'login'; render(); };
+  $('cartGo').onclick = () => { App.screen = 'cart'; render(); };
+  $('bottomnav').querySelectorAll('.nav-item').forEach((b) => {
+    b.onclick = () => { App.screen = b.dataset.screen; render(); };
+  });
+  $('overlay').addEventListener('click', (e) => {
+    if (e.target === $('overlay') && !App.reviewOrder && !App.closeOrder && !App.dishForm) closeModal();
+  });
+  $('overlay').addEventListener('click', (e) => {
+    if (e.target === $('overlay') && (App.reviewOrder || App.closeOrder || App.dishForm)) closeModal();
+  });
+}
+
+/* ---------------- 启动 ---------------- */
+Store.on(render);
+(async function boot() {
+  bindEvents();
+  await Store.init();
+  render();
+})();
+</script>
+</body>
+</html>
