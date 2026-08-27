@@ -462,12 +462,16 @@ const Store = {
     if (!r.ok) throw new Error('图片上传失败 ' + r.status);
     return `${SB.url}/storage/v1/object/public/${SB.bucket}/${name}`;
   },
-  // 删除 Storage 图片
+  // 删除 Storage 图片（匿名直删会被 storage-api 的 owner 校验拒绝，改用数据库函数删除）
   async sbDeleteImage(url) {
     const name = String(url || '').split('/').pop();
     if (!name) return;
     try {
-      await fetch(`${SB.url}/storage/v1/object/${SB.bucket}/${name}`, { method: 'DELETE', headers: SB._h() });
+      await fetch(`${SB.url}/rest/v1/rpc/sb_delete_object`, {
+        method: 'POST',
+        headers: Object.assign(SB._h(), { 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ obj_name: name })
+      });
     } catch (e) { /* 忽略删除失败 */ }
   },
   // 云端统一提交：读最新 → mutator 修改 → 条件写入（乐观锁，冲突自动重试）
