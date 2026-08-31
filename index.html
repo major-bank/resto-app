@@ -239,6 +239,22 @@
   }
   .seg button.active { background: #fff; color: var(--txt); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
 
+  /* 顺序管理 */
+  .sort-hint { padding: 2px 14px 8px; font-size: 12px; color: var(--sub); line-height: 1.7; }
+  .sort-cat { margin: 6px 10px 12px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--card); }
+  .sort-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; }
+  .sort-item.cat { background: #f2f2f4; border-bottom: 1px solid var(--line); }
+  .sort-item.dish { border-bottom: 1px dashed var(--line); padding-left: 6px; }
+  .sort-item.dish:last-child { border-bottom: none; }
+  .sort-item.dragging { opacity: .5; }
+  .sort-grip { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 30px; border-radius: 6px; background: #e9e9ec; color: var(--sub); font-size: 13px; cursor: grab; flex-shrink: 0; touch-action: none; -webkit-user-select: none; user-select: none; }
+  .sort-item.dish .sort-grip { background: transparent; }
+  .sort-thumb { width: 34px; height: 34px; border-radius: 6px; overflow: hidden; flex-shrink: 0; }
+  .sort-thumb img, .sort-thumb .emoji { width: 100%; height: 100%; object-fit: cover; display: flex; align-items: center; justify-content: center; font-size: 18px; background: #f2f2f4; }
+  .sort-cat-icon { font-size: 16px; flex-shrink: 0; }
+  .sort-item .nm { font-size: 14px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .sort-item .st { font-size: 12px; flex-shrink: 0; }
+
   /* 登录 */
   .login-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 30px; }
   .login-logo { font-size: 60px; }
@@ -434,7 +450,7 @@ const App = {
 const Store = {
   mode: 'offline',        // supabase | online | offline
   uid: localStorage.getItem('resto_uid') || genUid(),
-  dishes: [], orders: [], settings: { name: '云味小馆', pin: '123456', slogan: '', pushEnabled: false, pushToken: '' },
+  dishes: [], orders: [], settings: { name: '云味小馆', pin: '123456', slogan: '', pushEnabled: false, pushToken: '', catOrder: [] },
   ver: 0,                 // 云端数据版本号（轮询兜底比对用）
   listeners: new Set(),
   es: null,
@@ -469,7 +485,7 @@ const Store = {
   // 首次初始化（表里还没有数据时用 upsert 插入种子）
   async sbSeed() {
     const seed = { dishes: this._seedDishes(), orders: [], seq: 1, version: 1,
-      settings: { name: '云味小馆', pin: '123456', slogan: '用心做好每一道菜', pushEnabled: false, pushToken: '' } };
+      settings: { name: '云味小馆', pin: '123456', slogan: '用心做好每一道菜', pushEnabled: false, pushToken: '', catOrder: [] } };
     const r = await fetch(`${SB.url}/rest/v1/resto_state?key=eq.db`, {
       method: 'POST',
       headers: Object.assign(SB._h(), { 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates' }),
@@ -529,7 +545,7 @@ const Store = {
     this.orders = Array.isArray(d.orders) ? d.orders : [];
     this.seq = Number(d.seq) || 1;
     this.ver = Number(d.version) || 0;
-    this.settings = Object.assign({ name: '云味小馆', pin: '123456', slogan: '' }, d.settings || {});
+    this.settings = Object.assign({ name: '云味小馆', pin: '123456', slogan: '', pushEnabled: false, pushToken: '', catOrder: [] }, d.settings || {});
     this.emit();
   },
   _seedDishes() {
@@ -768,7 +784,7 @@ const Store = {
             this.sbDeleteImage(old.image);
           }
           db.dishes[i] = dish;
-        } else db.dishes.unshift(dish);
+        } else { dish.sort = 0; db.dishes.unshift(dish); }
       }, true);
       return dish;
     }
@@ -781,7 +797,7 @@ const Store = {
     }
     const list = JSON.parse(localStorage.getItem('resto_dishes') || '[]');
     const i = list.findIndex((x) => x.id === dish.id);
-    if (i >= 0) list[i] = dish; else list.unshift(dish);
+    if (i >= 0) list[i] = dish; else { dish.sort = 0; list.unshift(dish); }
     localStorage.setItem('resto_dishes', JSON.stringify(list));
     await this.refresh();
     return dish;
@@ -847,11 +863,42 @@ const Store = {
       await this.refresh();
       return j.settings;
     }
-    const cur = JSON.parse(localStorage.getItem('resto_settings') || 'null') || { name: '云味小馆', pin: '123456', slogan: '' };
+    const cur = JSON.parse(localStorage.getItem('resto_settings') || 'null') || { name: '云味小馆', pin: '123456', slogan: '', pushEnabled: false, pushToken: '', catOrder: [] };
     const next = Object.assign(cur, s);
     localStorage.setItem('resto_settings', JSON.stringify(next));
     await this.refresh();
     return next;
+  },
+
+  /* ---- 排序 ---- */
+  async saveCatOrder(order) {
+    return this.saveSettings(Object.assign({}, this.settings, { catOrder: order }));
+  },
+  async saveDishSort(ids) {
+    if (this.mode === 'supabase') {
+      await this.commit((db) => {
+        db.dishes = Array.isArray(db.dishes) ? db.dishes : [];
+        ids.forEach((id, i) => {
+          const d = db.dishes.find((x) => x.id === id);
+          if (d) d.sort = i;
+        });
+      }, true);
+      return;
+    }
+    if (this.mode === 'online') {
+      const r = await fetch('/api/dishes/reorder', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || '保存失败');
+      await this.refresh();
+      return;
+    }
+    const list = JSON.parse(localStorage.getItem('resto_dishes') || '[]');
+    ids.forEach((id, i) => {
+      const d = list.find((x) => x.id === id);
+      if (d) d.sort = i;
+    });
+    localStorage.setItem('resto_dishes', JSON.stringify(list));
+    await this.refresh();
   },
 
   /* ---- 微信推送（PushPlus） ---- */
@@ -880,12 +927,18 @@ function dishImgEl(dish) {
 function homeGroups() {
   const map = {};
   const order = [];
+  // 分组顺序独立于菜品 sort：按原始数组顺序派生（catOrder 优先）
   Store.dishes.forEach((d) => {
     const c = d.cat && String(d.cat).trim() ? String(d.cat).trim() : '其他';
     if (!map[c]) { map[c] = []; order.push(c); }
     map[c].push(d);
   });
-  return order.map((c) => ({ cat: c, items: map[c] }));
+  const catOrder = (Array.isArray(Store.settings.catOrder) ? Store.settings.catOrder : []).filter(Boolean);
+  const known = catOrder.filter((c) => order.includes(c));
+  const extra = order.filter((c) => !known.includes(c));
+  // 组内菜品按 sort 排序（无 sort 的老数据按数组顺序，sort 相同保持稳定顺序）
+  const bySort = (a, b) => (typeof a.sort === 'number' ? a.sort : 99999) - (typeof b.sort === 'number' ? b.sort : 99999);
+  return known.concat(extra).map((c) => ({ cat: c, items: map[c].slice().sort(bySort) }));
 }
 
 function dishCard(d) {
@@ -1031,7 +1084,7 @@ function orderAdminActions(o) {
 
 function renderAdmin() {
   const tabs = [
-    ['orders', '📋 订单'], ['dishes', '🍲 菜谱'], ['stats', '📊 统计'], ['settings', '⚙️ 设置']
+    ['orders', '📋 订单'], ['dishes', '🍲 菜谱'], ['sort', '🔀 排序'], ['stats', '📊 统计'], ['settings', '⚙️ 设置']
   ];
   $('app').innerHTML = `
     <div class="admin-head">
@@ -1045,6 +1098,7 @@ function renderAdmin() {
     <div style="height:8px"></div>
     ${App.adminTab === 'orders' ? renderAdminOrders() : ''}
     ${App.adminTab === 'dishes' ? renderAdminDishes() : ''}
+    ${App.adminTab === 'sort' ? renderAdminSort() : ''}
     ${App.adminTab === 'stats' ? renderStats() : ''}
     ${App.adminTab === 'settings' ? renderSettings() : ''}
   `;
@@ -1086,6 +1140,108 @@ function renderAdminDishes() {
       : '<div class="empty"><span class="big">🍲</span>菜谱为空，点击右上角添加</div>'}
   `;
 }
+
+/* ---------------- 管理端：顺序管理 ---------------- */
+function renderAdminSort() {
+  const groups = homeGroups();
+  return `
+    <div class="sec-title">顺序管理
+      <button class="btn sm ghost" onclick="resetSortOrder()">↺ 恢复默认</button>
+    </div>
+    <div class="sort-hint">长按左侧 <b>☰</b> 上下拖动调整顺序，或点 <b>↑↓</b> 微调；调整后自动保存</div>
+    ${groups.length ? groups.map((g) => `
+      <div class="sort-cat">
+        <div class="sort-item cat" data-kind="cat" data-id="${esc(g.cat)}">
+          <span class="sort-grip" data-kind="cat" data-id="${esc(g.cat)}" onpointerdown="dragStart(event,this)">☰</span>
+          <span class="sort-cat-icon">🗂️</span>
+          <span class="grow nm">${esc(g.cat)}</span>
+          <span class="st">${g.items.length} 道</span>
+          <button class="btn sm ghost" onclick="moveSort(this,-1)">↑</button>
+          <button class="btn sm ghost" onclick="moveSort(this,1)">↓</button>
+        </div>
+        <div class="sort-dishes">
+          ${g.items.map((d) => `
+            <div class="sort-item dish" data-kind="dish" data-id="${d.id}">
+              <span class="sort-grip" data-kind="dish" data-id="${d.id}" onpointerdown="dragStart(event,this)">⋮⋮</span>
+              <span class="sort-thumb">${imgHtml(d, '')}</span>
+              <span class="grow nm">${esc(d.name)}</span>
+              <span class="st">${fmtPrice(d.price)}</span>
+              <button class="btn sm ghost" onclick="moveSort(this,-1)">↑</button>
+              <button class="btn sm ghost" onclick="moveSort(this,1)">↓</button>
+            </div>`).join('')}
+        </div>
+      </div>`).join('')
+      : '<div class="empty"><span class="big">🍲</span>暂无菜品，先去「菜谱」添加</div>'}
+    <div style="height:14px"></div>
+  `;
+}
+
+let _drag = null;
+function dragStart(e, grip) {
+  if (e.button && e.button !== 0) return;
+  const item = grip.closest('.sort-item');
+  if (!item) return;
+  _drag = { item, moved: false, y: e.clientY };
+  item.classList.add('dragging');
+  try { grip.setPointerCapture(e.pointerId); } catch (err) {}
+  e.preventDefault();
+}
+function dragMove(e) {
+  if (!_drag) return;
+  if (!_drag.moved && Math.abs(e.clientY - _drag.y) > 6) _drag.moved = true;
+  if (!_drag.moved) return;
+  const item = _drag.item;
+  const siblings = [...item.parentElement.children].filter((n) => n.classList && n.classList.contains('sort-item'));
+  const target = siblings.find((n) => n !== item && e.clientY < n.getBoundingClientRect().top + n.offsetHeight / 2);
+  if (target) item.parentElement.insertBefore(item, target);
+  else if (siblings[siblings.length - 1] !== item) item.parentElement.appendChild(item);
+}
+function dragEnd() {
+  if (!_drag) return;
+  _drag.item.classList.remove('dragging');
+  const parent = _drag.item.parentElement;
+  const kind = _drag.item.dataset.kind;
+  const moved = _drag.moved;
+  _drag = null;
+  if (moved) saveSortFromDom(parent, kind);
+}
+function moveSort(btn, delta) {
+  const item = btn.closest('.sort-item');
+  if (!item) return;
+  const siblings = [...item.parentElement.children].filter((n) => n.classList && n.classList.contains('sort-item'));
+  const i = siblings.indexOf(item);
+  const j = Math.min(siblings.length - 1, Math.max(0, i + delta));
+  if (i === j) return;
+  if (delta < 0) item.parentElement.insertBefore(item, siblings[j]);
+  else item.parentElement.insertBefore(item, siblings[j].nextSibling);
+  saveSortFromDom(item.parentElement, item.dataset.kind);
+}
+function saveSortFromDom(parent, kind) {
+  const ids = [...parent.children]
+    .filter((n) => n.classList && n.classList.contains('sort-item') && n.dataset.id !== undefined)
+    .map((n) => n.dataset.id);
+  if (!ids.length) return;
+  saveSortOrder(kind, ids);
+}
+async function saveSortOrder(kind, ids) {
+  try {
+    if (kind === 'cat') await Store.saveCatOrder(ids);
+    else await Store.saveDishSort(ids);
+    toast('顺序已保存 ✅');
+  } catch (e) { toast(e.message || '保存失败'); }
+}
+async function resetSortOrder() {
+  if (!confirm('恢复为默认顺序（按添加时间）？')) return;
+  try {
+    await Store.saveDishSort(Store.dishes.map((d) => d.id));
+    await Store.saveCatOrder([]);
+    toast('已恢复默认顺序');
+    render();
+  } catch (e) { toast(e.message || '操作失败'); }
+}
+window.addEventListener('pointermove', dragMove, { passive: false });
+window.addEventListener('pointerup', dragEnd);
+window.addEventListener('pointercancel', dragEnd);
 
 function renderStats() {
   const today = fmtDate(new Date().toISOString());
