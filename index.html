@@ -101,6 +101,35 @@
   }
   .cat-chip.active { background: var(--pri); color: #fff; border-color: var(--pri); font-weight: 600; }
 
+  /* 菜单：左侧分类栏 + 右侧分组列表（抽屉式） */
+  #app.no-scroll { overflow: hidden; }
+  .menu-wrap { display: flex; height: 100%; overflow: hidden; }
+  .cat-side {
+    flex: none; width: 86px; background: #f0f0f2; overflow-y: auto;
+    -webkit-overflow-scrolling: touch; padding: 8px 0 16px; scrollbar-width: none;
+  }
+  .cat-side::-webkit-scrollbar { display: none; }
+  .cat-item {
+    display: block; width: 100%; border: none; background: none; text-align: center;
+    padding: 14px 6px; font-size: 12px; color: var(--sub); cursor: pointer; position: relative;
+    line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .cat-item.active { background: #fff; color: var(--pri); font-weight: 700; }
+  .cat-item.active::before {
+    content: ''; position: absolute; left: 0; top: 22%; bottom: 22%;
+    width: 3px; border-radius: 0 2px 2px 0; background: var(--pri);
+  }
+  .dish-groups {
+    flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+    padding-bottom: 70px; scrollbar-width: none; position: relative;
+  }
+  .dish-groups::-webkit-scrollbar { display: none; }
+  .group-title {
+    position: sticky; top: 0; z-index: 5; background: var(--bg);
+    font-size: 12px; font-weight: 700; color: var(--txt); padding: 10px 12px 6px;
+  }
+  .dish-group .dish-grid { padding: 2px 10px 14px; }
+
   /* 菜品网格 */
   .dish-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px 12px 12px; }
   .dish-card {
@@ -393,6 +422,7 @@ const App = {
   adminTab: 'orders',   // orders | dishes | stats | settings
   userTab: 'active',    // active | history
   cat: '全部',
+  homeCatIdx: 0,        // 首页左侧分类栏当前选中索引
   cart: JSON.parse(localStorage.getItem('resto_cart') || '[]'),
   reviewOrder: null,    // 点评中的订单
   closeOrder: null,     // 关闭中的订单
@@ -404,7 +434,7 @@ const App = {
 const Store = {
   mode: 'offline',        // supabase | online | offline
   uid: localStorage.getItem('resto_uid') || genUid(),
-  dishes: [], orders: [], settings: { name: '云味小馆', pin: '123456', slogan: '' },
+  dishes: [], orders: [], settings: { name: '云味小馆', pin: '123456', slogan: '', pushEnabled: false, pushToken: '' },
   ver: 0,                 // 云端数据版本号（轮询兜底比对用）
   listeners: new Set(),
   es: null,
@@ -439,7 +469,7 @@ const Store = {
   // 首次初始化（表里还没有数据时用 upsert 插入种子）
   async sbSeed() {
     const seed = { dishes: this._seedDishes(), orders: [], seq: 1, version: 1,
-      settings: { name: '云味小馆', pin: '123456', slogan: '用心做好每一道菜' } };
+      settings: { name: '云味小馆', pin: '123456', slogan: '用心做好每一道菜', pushEnabled: false, pushToken: '' } };
     const r = await fetch(`${SB.url}/rest/v1/resto_state?key=eq.db`, {
       method: 'POST',
       headers: Object.assign(SB._h(), { 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates' }),
@@ -650,6 +680,7 @@ const Store = {
         db.seq = seq + 1;
         (db.orders = Array.isArray(db.orders) ? db.orders : []).unshift(created);
       }, false);
+      await this.pushNotify(created);
       return created;
     }
     if (this.mode === 'online') {
@@ -657,6 +688,7 @@ const Store = {
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(j.error || '下单失败');
       await this.refresh();
+      await this.pushNotify(j.order);
       return j.order;
     }
     const seq = Number(localStorage.getItem('resto_seq') || '1');
@@ -672,6 +704,7 @@ const Store = {
     list.unshift(order);
     localStorage.setItem('resto_orders', JSON.stringify(list));
     await this.refresh();
+    await this.pushNotify(order);
     return order;
   },
 
@@ -819,6 +852,22 @@ const Store = {
     localStorage.setItem('resto_settings', JSON.stringify(next));
     await this.refresh();
     return next;
+  },
+
+  /* ---- 微信推送（PushPlus） ---- */
+  async pushNotify(order) {
+    const s = this.settings || {};
+    if (!order || !s.pushEnabled || !s.pushToken) return;
+    try {
+      const items = (order.items || []).map((it) => `${it.name} x${it.qty}`).join('、');
+      const total = Number(order.total).toFixed(2);
+      const content = `【${s.name || '云味小馆'}】新订单 #${order.seq}${order.table ? ' · ' + order.table + '桌' : ''}\n${items}\n合计 ¥${total}${order.remark ? '\n备注：' + order.remark : ''}`;
+      await fetch('https://www.pushplus.plus/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: s.pushToken, title: `🍽️ 新订单 #${order.seq}`, content, template: 'txt' })
+      });
+    } catch (e) { /* 推送失败不影响下单 */ }
   }
 };
 
@@ -828,29 +877,82 @@ function dishImgEl(dish) {
   return `<div class="img-wrap">${imgHtml(dish)}</div>`;
 }
 
+function homeGroups() {
+  const map = {};
+  const order = [];
+  Store.dishes.forEach((d) => {
+    const c = d.cat && String(d.cat).trim() ? String(d.cat).trim() : '其他';
+    if (!map[c]) { map[c] = []; order.push(c); }
+    map[c].push(d);
+  });
+  return order.map((c) => ({ cat: c, items: map[c] }));
+}
+
+function dishCard(d) {
+  return `
+    <div class="dish-card ${d.on ? '' : 'off'}" onclick="openDishDetail('${d.id}')">
+      ${d.on ? '' : '<div class="sold">已售罄</div>'}
+      ${dishImgEl(d)}
+      <div class="body">
+        <div class="nm">${esc(d.name)}</div>
+        ${d.desc ? `<div class="ds">${esc(d.desc)}</div>` : ''}
+        <div class="row">
+          <div class="price"><small>¥</small>${Number(d.price).toFixed(Number(d.price) % 1 ? 2 : 0)}</div>
+          <button class="add-btn" ${d.on ? '' : 'disabled'} onclick="event.stopPropagation();addToCart('${d.id}')">+</button>
+        </div>
+      </div>
+    </div>`;
+}
+
 function renderHome() {
-  const cats = ['全部', ...new Set(Store.dishes.map((d) => d.cat).filter(Boolean))];
-  const list = App.cat === '全部' ? Store.dishes : Store.dishes.filter((d) => d.cat === App.cat);
+  const groups = homeGroups();
   $('app').innerHTML = `
-    <div class="cats">
-      ${cats.map((c) => `<button class="cat-chip ${c === App.cat ? 'active' : ''}" onclick="App.cat='${esc(c)}';render()">${esc(c)}</button>`).join('')}
-    </div>
-    ${list.length ? `<div class="dish-grid">
-      ${list.map((d) => `
-        <div class="dish-card ${d.on ? '' : 'off'}" onclick="openDishDetail('${d.id}')">
-          ${d.on ? '' : '<div class="sold">已售罄</div>'}
-          ${dishImgEl(d)}
-          <div class="body">
-            <div class="nm">${esc(d.name)}</div>
-            ${d.desc ? `<div class="ds">${esc(d.desc)}</div>` : ''}
-            <div class="row">
-              <div class="price"><small>¥</small>${Number(d.price).toFixed(Number(d.price) % 1 ? 2 : 0)}</div>
-              <button class="add-btn" ${d.on ? '' : 'disabled'} onclick="event.stopPropagation();addToCart('${d.id}')">+</button>
+    <div class="menu-wrap">
+      <div class="cat-side" id="catSide">
+        ${groups.map((g, i) => `<button class="cat-item ${i === App.homeCatIdx ? 'active' : ''}" onclick="selectCat(${i})">${esc(g.cat)}</button>`).join('')}
+      </div>
+      <div class="dish-groups" id="dishGroups" onscroll="syncCatSide()">
+        ${groups.length ? groups.map((g) => `
+          <div class="dish-group" data-cat="${esc(g.cat)}">
+            <div class="group-title">${esc(g.cat)}</div>
+            <div class="dish-grid">
+              ${g.items.map((d) => dishCard(d)).join('')}
             </div>
-          </div>
-        </div>`).join('')}
-    </div>` : '<div class="empty"><span class="big">🍽️</span>暂无菜品<br><span style="font-size:11px">管理员可在「管理端」添加菜品</span></div>'}
-  `;
+          </div>`).join('')
+        : '<div class="empty" style="margin-top:40px"><span class="big">🍽️</span>暂无菜品<br><span style="font-size:11px">管理员可在「管理端」添加菜品</span></div>'}
+      </div>
+    </div>`;
+  requestAnimationFrame(() => scrollToCat(App.homeCatIdx || 0, true));
+}
+
+function selectCat(idx) {
+  App.homeCatIdx = idx;
+  scrollToCat(idx);
+}
+
+function scrollToCat(idx, instant) {
+  const wrap = $('dishGroups');
+  if (!wrap) return;
+  const group = wrap.querySelectorAll('.dish-group')[idx];
+  if (group) wrap.scrollTo({ top: group.offsetTop, behavior: instant ? 'auto' : 'smooth' });
+  const items = document.querySelectorAll('#catSide .cat-item');
+  items.forEach((b, i) => b.classList.toggle('active', i === idx));
+  App.homeCatIdx = idx;
+}
+
+function syncCatSide() {
+  const wrap = $('dishGroups');
+  const groups = wrap ? wrap.querySelectorAll('.dish-group') : [];
+  if (!wrap || !groups.length) return;
+  const top = wrap.scrollTop + 6;
+  let idx = 0;
+  for (let i = 0; i < groups.length; i++) {
+    if (groups[i].offsetTop <= top) idx = i; else break;
+  }
+  if (idx !== App.homeCatIdx) {
+    App.homeCatIdx = idx;
+    document.querySelectorAll('#catSide .cat-item').forEach((b, i) => b.classList.toggle('active', i === idx));
+  }
 }
 
 function renderUser() {
@@ -1029,6 +1131,25 @@ function renderSettings() {
       </div>
       <button class="btn block" onclick="saveSettings()">保存设置</button>
     </div>
+    <div class="sec-title">微信提醒</div>
+    <div class="card">
+      <div class="field">
+        <label>新订单推送开关</label>
+        <div style="display:flex;align-items:center;gap:10px">
+          <input type="checkbox" id="setPush" ${s.pushEnabled ? 'checked' : ''} style="width:18px;height:18px;flex:none">
+          <span style="font-size:12px;color:var(--sub)">开启后，顾客每下一单，你的微信都会收到提醒</span>
+        </div>
+      </div>
+      <div class="field">
+        <label>PushPlus Token（推送密钥）</label>
+        <input id="setPushToken" value="${esc(s.pushToken || '')}" maxlength="64" placeholder="填 pushplus.plus 获取的 token">
+      </div>
+      <button class="btn ghost block" onclick="testPush()">📨 发送测试消息</button>
+      <div style="font-size:11px;color:var(--sub);line-height:1.8;margin-top:10px">
+        获取方法：微信搜索关注「<b>PushPlus</b>」公众号 → 首页「一对一推送」→ 复制 token 填到上面（免费，每天 200 条，小店足够用）。<br>
+        修改后记得点「保存设置」。
+      </div>
+    </div>
     <div class="card" style="font-size:12px;color:var(--sub);line-height:1.8">
       <b style="color:var(--txt)">关于同步</b><br>
       ${Store.mode === 'supabase'
@@ -1047,8 +1168,10 @@ function render() {
   nav.classList.remove('hidden');
   cartbar.classList.remove('show');
   $('app').classList.remove('no-pad');
+  $('app').classList.remove('no-scroll');
 
   if (App.screen === 'home') {
+    $('app').classList.add('no-pad', 'no-scroll');
     renderHome();
     nav.querySelectorAll('.nav-item').forEach((b) => b.classList.toggle('active', b.dataset.screen === 'home'));
     updateCartBar();
@@ -1419,10 +1542,29 @@ async function saveSettings() {
   if (!name) return toast('店名不能为空');
   if (!/^\d{4,8}$/.test(pin)) return toast('密码需为 4-8 位数字');
   try {
-    await Store.saveSettings({ name, slogan, pin });
+    await Store.saveSettings({
+      name, slogan, pin,
+      pushEnabled: !!$('setPush').checked,
+      pushToken: $('setPushToken').value.trim()
+    });
     toast('设置已保存 ✅');
     render();
   } catch (e) { toast(e.message); }
+}
+
+async function testPush() {
+  const token = $('setPushToken').value.trim();
+  if (!token) return toast('请先填写 PushPlus Token');
+  try {
+    const r = await fetch('https://www.pushplus.plus/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, title: '🍜 测试消息', content: '云味小馆微信提醒已开启 ✅ 今后有新订单会推送到这里', template: 'txt' })
+    });
+    const j = await r.json().catch(() => ({}));
+    if (j.code === 200 || (j.msg && !String(j.msg).includes('失败'))) toast('测试消息已发送，请查看微信 📨');
+    else toast('发送失败：' + (j.msg || r.status));
+  } catch (e) { toast('网络错误：' + e.message); }
 }
 
 /* ---------------- 登录 / 角色 ---------------- */
