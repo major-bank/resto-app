@@ -243,7 +243,8 @@
   .sort-hint { padding: 2px 14px 8px; font-size: 12px; color: var(--sub); line-height: 1.7; }
   .sort-cat { margin: 6px 10px 12px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--card); }
   .sort-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; }
-  .sort-item.cat { background: #f2f2f4; border-bottom: 1px solid var(--line); }
+  .sort-item.cat { display: block; padding: 0; background: var(--card); }
+  .sort-cat-head { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: #f2f2f4; border-bottom: 1px solid var(--line); }
   .sort-item.dish { border-bottom: 1px dashed var(--line); padding-left: 6px; }
   .sort-item.dish:last-child { border-bottom: none; }
   .sort-item.dragging { opacity: .5; }
@@ -1150,8 +1151,8 @@ function renderAdminSort() {
     </div>
     <div class="sort-hint">长按左侧 <b>☰</b> 上下拖动调整顺序，或点 <b>↑↓</b> 微调；调整后自动保存</div>
     ${groups.length ? groups.map((g) => `
-      <div class="sort-cat">
-        <div class="sort-item cat" data-kind="cat" data-id="${esc(g.cat)}">
+      <div class="sort-cat sort-item cat" data-kind="cat" data-id="${esc(g.cat)}">
+        <div class="sort-cat-head">
           <span class="sort-grip" data-kind="cat" data-id="${esc(g.cat)}" onpointerdown="dragStart(event,this)">☰</span>
           <span class="sort-cat-icon">🗂️</span>
           <span class="grow nm">${esc(g.cat)}</span>
